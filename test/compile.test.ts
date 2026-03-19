@@ -47,4 +47,29 @@ describe('Compile', () => {
     expect(artifact.abi).toBeDefined();
     expect(artifact.bytecode).toBeDefined();
   });
+
+  it('should include all expected contract functions', () => {
+    const functionNames = result.abi
+      .filter((e: any) => e.type === 'function')
+      .map((e: any) => e.name);
+    const expectedFunctions = [
+      'spend', 'deposit', 'setDailyLimit', 'setRecipientWhitelist',
+      'pause', 'unpause', 'getPolicy', 'getSpentToday', 'getHistory',
+      'owner', 'agent', 'dailyLimit', 'paused', 'whitelistedRecipients', 'history',
+    ];
+    for (const fn of expectedFunctions) {
+      expect(functionNames).toContain(fn);
+    }
+  });
+
+  it('should include expected event signatures', () => {
+    const events = result.abi
+      .filter((e: any) => e.type === 'event')
+      .map((e: any) => e.name);
+    expect(events).toContain('Deposited');
+    expect(events).toContain('Spent');
+    expect(events).toContain('PolicyUpdated');
+    expect(events).toContain('Paused');
+    expect(events).toContain('Unpaused');
+  });
 });

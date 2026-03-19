@@ -66,4 +66,43 @@ describe('Reporter', () => {
     expect(json.budgetUtilization).toBe('35%');
     expect(json.topRecipients).toHaveLength(2);
   });
+
+  it('should report 0% utilization with zero spent', () => {
+    const report = generateReport([], mockPolicy, 0n);
+    expect(report.budgetUtilization).toBe(0);
+    expect(report.summary).toContain('0%');
+  });
+
+  it('should report 50% utilization', () => {
+    const report = generateReport(mockRecords, mockPolicy, parseEther('0.5'));
+    expect(report.budgetUtilization).toBe(50);
+    expect(report.summary).toContain('50%');
+  });
+
+  it('should report 100% utilization and fully utilized message', () => {
+    const report = generateReport(mockRecords, mockPolicy, parseEther('1'));
+    expect(report.budgetUtilization).toBe(100);
+    expect(report.summary).toContain('100%');
+    expect(report.summary).toContain('fully utilized');
+  });
+
+  it('should generate summary for empty history', () => {
+    const report = generateReport([], mockPolicy, 0n);
+    expect(report.summary).toContain('0 ETH today');
+    expect(report.summary).toContain('Total transactions: 0');
+    expect(report.summary).toContain('Remaining budget');
+  });
+
+  it('should handle records across multiple days', () => {
+    const multiDayRecords: SpendRecord[] = [
+      { to: ADDR_A, amount: parseEther('0.1'), reason: 'Day 1', timestamp: 1700000000n },
+      { to: ADDR_B, amount: parseEther('0.2'), reason: 'Day 2', timestamp: 1700100000n },
+      { to: ADDR_A, amount: parseEther('0.15'), reason: 'Day 3', timestamp: 1700200000n },
+    ];
+    const report = generateReport(multiDayRecords, mockPolicy, parseEther('0.15'));
+    expect(report.transactionCount).toBe(3);
+    expect(report.totalSpent).toBe(parseEther('0.45'));
+    expect(report.topRecipients[0].address).toBe(ADDR_A.toLowerCase());
+    expect(report.topRecipients[0].count).toBe(2);
+  });
 });

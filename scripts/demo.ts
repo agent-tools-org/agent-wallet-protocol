@@ -81,7 +81,7 @@ async function demo() {
     paused: policy.paused,
   };
 
-  // 2. Spend within limits (succeeds)
+  // 2. Spend within limits (succeeds) + budget tracking
   console.log('\n✅ Step 2: Spend 0.3 ETH (within limits)');
   const spend1 = await agent.proposeSpend(
     '0x1111111111111111111111111111111111111111' as `0x${string}`,
@@ -90,6 +90,9 @@ async function demo() {
   );
   console.log(`   Result: ${spend1.success ? 'SUCCESS' : 'BLOCKED'}`);
   if (spend1.txHash) console.log(`   Tx: ${spend1.txHash}`);
+  const remaining1 = await agent.getDailyBudgetRemaining();
+  const util1 = Number((simulatedSpentToday * 10000n) / policy.dailyLimit) / 100;
+  console.log(`   📈 Budget: ${formatEther(simulatedSpentToday)} / ${formatEther(policy.dailyLimit)} ETH (${util1}% used, ${formatEther(remaining1)} remaining)`);
   demoResults.spend1_within_limit = spend1;
 
   // 3. Spend more (still within limits)
@@ -100,42 +103,84 @@ async function demo() {
     'Data storage fee'
   );
   console.log(`   Result: ${spend2.success ? 'SUCCESS' : 'BLOCKED'}`);
+  const remaining2 = await agent.getDailyBudgetRemaining();
+  const util2 = Number((simulatedSpentToday * 10000n) / policy.dailyLimit) / 100;
+  console.log(`   📈 Budget: ${formatEther(simulatedSpentToday)} / ${formatEther(policy.dailyLimit)} ETH (${util2}% used, ${formatEther(remaining2)} remaining)`);
   demoResults.spend2_within_limit = spend2;
 
-  // 4. Exceed daily limit (blocked)
-  console.log('\n🚫 Step 4: Spend 0.6 ETH (exceeds daily limit)');
+  // 4. Third spend to approach limit
+  console.log('\n✅ Step 4: Spend 0.4 ETH (approaching limit)');
   const spend3 = await agent.proposeSpend(
     '0x1111111111111111111111111111111111111111' as `0x${string}`,
-    parseEther('0.6'),
-    'Large purchase'
+    parseEther('0.4'),
+    'Compute resources'
   );
   console.log(`   Result: ${spend3.success ? 'SUCCESS' : 'BLOCKED'}`);
-  console.log(`   Reason: ${spend3.error}`);
-  demoResults.spend3_over_limit = spend3;
+  const remaining3 = await agent.getDailyBudgetRemaining();
+  const util3 = Number((simulatedSpentToday * 10000n) / policy.dailyLimit) / 100;
+  console.log(`   📈 Budget: ${formatEther(simulatedSpentToday)} / ${formatEther(policy.dailyLimit)} ETH (${util3}% used, ${formatEther(remaining3)} remaining)`);
+  demoResults.spend3_approaching_limit = spend3;
 
-  // 5. Non-whitelisted address (blocked)
-  console.log('\n🚫 Step 5: Spend to non-whitelisted address');
+  // 5. Policy violation: Exceed daily limit (blocked)
+  console.log('\n═══════════════════════════════════════════');
+  console.log('  🚨 Policy Violation Demonstrations');
+  console.log('═══════════════════════════════════════════');
+
+  console.log('\n🚫 Step 5: Spend 0.2 ETH (exceeds daily limit — only 0.1 remaining)');
   const spend4 = await agent.proposeSpend(
-    '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as `0x${string}`,
-    parseEther('0.1'),
-    'Unknown recipient'
+    '0x1111111111111111111111111111111111111111' as `0x${string}`,
+    parseEther('0.2'),
+    'Over budget request'
   );
   console.log(`   Result: ${spend4.success ? 'SUCCESS' : 'BLOCKED'}`);
   console.log(`   Reason: ${spend4.error}`);
-  demoResults.spend4_not_whitelisted = spend4;
+  demoResults.spend4_over_limit = spend4;
 
-  // 6. Budget check
-  console.log('\n💰 Step 6: Check remaining budget');
+  // 6. Policy violation: Non-whitelisted address (blocked)
+  console.log('\n🚫 Step 6: Spend to non-whitelisted address');
+  const spend5 = await agent.proposeSpend(
+    '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as `0x${string}`,
+    parseEther('0.05'),
+    'Unknown recipient'
+  );
+  console.log(`   Result: ${spend5.success ? 'SUCCESS' : 'BLOCKED'}`);
+  console.log(`   Reason: ${spend5.error}`);
+  demoResults.spend5_not_whitelisted = spend5;
+
+  // 7. Policy violation: Zero amount (blocked)
+  console.log('\n🚫 Step 7: Spend 0 ETH (zero amount)');
+  const spend6 = await agent.proposeSpend(
+    '0x1111111111111111111111111111111111111111' as `0x${string}`,
+    0n,
+    'Zero amount test'
+  );
+  console.log(`   Result: ${spend6.success ? 'SUCCESS' : 'BLOCKED'}`);
+  console.log(`   Reason: ${spend6.error}`);
+  demoResults.spend6_zero_amount = spend6;
+
+  // 8. Budget check
+  console.log('\n💰 Step 8: Final budget check');
   const remaining = await agent.getDailyBudgetRemaining();
   console.log(`   Remaining: ${formatEther(remaining)} ETH`);
   demoResults.remaining_budget = formatEther(remaining);
 
-  // 7. Generate spending report
-  console.log('\n📊 Step 7: Generate spending report');
+  // 9. Formatted spending report
+  console.log('\n═══════════════════════════════════════════');
+  console.log('  📊 Spending Report');
+  console.log('═══════════════════════════════════════════');
   const history = await agent.getSpendingHistory();
   const report = generateReport(history, policy, simulatedSpentToday);
-  console.log(`   ${report.summary}`);
-  demoResults.report = formatReportJSON(report);
+  const reportJSON = formatReportJSON(report) as any;
+
+  console.log(`\n   Total Spent:        ${reportJSON.totalSpent} ETH`);
+  console.log(`   Transactions:       ${reportJSON.transactionCount}`);
+  console.log(`   Budget Utilization: ${reportJSON.budgetUtilization}`);
+  console.log(`   \n   Top Recipients:`);
+  for (const r of reportJSON.topRecipients) {
+    console.log(`     • ${r.address} — ${r.total} ETH (${r.count} tx)`);
+  }
+  console.log(`\n   Summary: ${report.summary}`);
+  demoResults.report = reportJSON;
 
   // Save demo proof
   const proofDir = path.join(ROOT, 'proof');

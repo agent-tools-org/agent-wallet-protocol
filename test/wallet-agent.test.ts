@@ -170,4 +170,81 @@ describe('WalletAgent', () => {
     const formatted = agent.formatHistory([]);
     expect(formatted).toBe('No spending history.');
   });
+
+  it('should allow spend at exact daily limit boundary', async () => {
+    const { publicClient, walletClient } = createMockClients({
+      spentToday: parseEther('0.5'),
+    });
+    const agent = new WalletAgent(publicClient, walletClient, CONTRACT_ADDR, MOCK_ABI);
+
+    const result = await agent.validateSpend({
+      to: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
+      amount: parseEther('0.5'),
+      reason: 'Exact boundary',
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it('should reject spend 1 wei over daily limit', async () => {
+    const { publicClient, walletClient } = createMockClients({
+      spentToday: parseEther('0.5'),
+    });
+    const agent = new WalletAgent(publicClient, walletClient, CONTRACT_ADDR, MOCK_ABI);
+
+    const result = await agent.validateSpend({
+      to: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
+      amount: parseEther('0.5') + 1n,
+      reason: 'One wei over',
+    });
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('Exceeds daily limit');
+  });
+
+  it('should return full budget after midnight reset (spentToday = 0)', async () => {
+    const { publicClient, walletClient } = createMockClients({
+      spentToday: 0n,
+    });
+    const agent = new WalletAgent(publicClient, walletClient, CONTRACT_ADDR, MOCK_ABI);
+
+    const remaining = await agent.getDailyBudgetRemaining();
+    expect(remaining).toBe(parseEther('1'));
+  });
+
+  it('should allow any address when whitelist is empty', async () => {
+    const { publicClient, walletClient } = createMockClients({
+      policy: {
+        dailyLimit: parseEther('1'),
+        whitelistedRecipients: [],
+        paused: false,
+      },
+      spentToday: 0n,
+    });
+    const agent = new WalletAgent(publicClient, walletClient, CONTRACT_ADDR, MOCK_ABI);
+
+    const result = await agent.validateSpend({
+      to: '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as `0x${string}`,
+      amount: parseEther('0.1'),
+      reason: 'No whitelist restriction',
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it('should block proposeSpend when wallet is paused', async () => {
+    const { publicClient, walletClient } = createMockClients({
+      policy: {
+        dailyLimit: parseEther('1'),
+        whitelistedRecipients: ['0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`],
+        paused: true,
+      },
+    });
+    const agent = new WalletAgent(publicClient, walletClient, CONTRACT_ADDR, MOCK_ABI);
+
+    const result = await agent.proposeSpend(
+      '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
+      parseEther('0.1'),
+      'Paused wallet'
+    );
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('paused');
+  });
 });
