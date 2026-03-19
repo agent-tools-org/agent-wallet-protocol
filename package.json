@@ -1,0 +1,24 @@
+{
+  "name": "agent-wallet-protocol",
+  "version": "1.0.0",
+  "description": "On-chain wallet protocol for AI agents with configurable spending policies",
+  "type": "module",
+  "scripts": {
+    "build": "tsx src/compile.ts",
+    "deploy": "tsx src/deploy.ts",
+    "demo": "tsx scripts/demo.ts",
+    "test": "vitest run",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "solc": "^0.8.24",
+    "tsx": "^4.19.2",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
