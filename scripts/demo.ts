@@ -16,6 +16,7 @@ let simulatedPolicy: Policy = {
     '0x2222222222222222222222222222222222222222' as `0x${string}`,
   ],
   paused: false,
+  whitelistEnabled: true,
 };
 let simulatedSpentToday = 0n;
 const simulatedHistory: SpendRecord[] = [];
@@ -28,6 +29,7 @@ function createMockAgent(): WalletAgent {
           simulatedPolicy.dailyLimit,
           simulatedPolicy.whitelistedRecipients,
           simulatedPolicy.paused,
+          simulatedPolicy.whitelistEnabled,
         ];
       case 'getSpentToday':
         return simulatedSpentToday;

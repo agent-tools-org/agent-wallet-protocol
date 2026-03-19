@@ -7,9 +7,11 @@ contract AgentWallet {
 
     uint256 public dailyLimit;
     bool public paused;
+    bool public whitelistEnabled;
 
     mapping(address => bool) public whitelistedRecipients;
     address[] private _whitelistedList;
+    mapping(address => uint256) private _whitelistedIndex; // index in _whitelistedList
 
     struct SpendRecord {
         address to;
@@ -44,6 +46,7 @@ contract AgentWallet {
         agent = _agent;
         dailyLimit = 0;
         paused = false;
+        whitelistEnabled = false;
         _dayStart = _todayStart();
     }
 
@@ -61,7 +64,7 @@ contract AgentWallet {
         require(amount > 0, "Amount must be > 0");
         require(address(this).balance >= amount, "Insufficient balance");
 
-        if (_whitelistedList.length > 0) {
+        if (whitelistEnabled) {
             require(whitelistedRecipients[to], "Recipient not whitelisted");
         }
 
@@ -82,11 +85,42 @@ contract AgentWallet {
         emit PolicyUpdated("dailyLimit");
     }
 
+    function setWhitelistEnabled(bool enabled) external onlyOwner {
+        whitelistEnabled = enabled;
+        emit PolicyUpdated("whitelistEnabled");
+    }
+
     function setRecipientWhitelist(address[] calldata recipients, bool allowed) external onlyOwner {
+        // When enabling for the first time, the whitelist enforcement should be active.
+        // This matches the previous behavior where adding recipients activated enforcement.
+        if (allowed && recipients.length > 0) {
+            whitelistEnabled = true;
+        }
+
         for (uint256 i = 0; i < recipients.length; i++) {
-            whitelistedRecipients[recipients[i]] = allowed;
+            address recipient = recipients[i];
             if (allowed) {
-                _whitelistedList.push(recipients[i]);
+                if (!whitelistedRecipients[recipient]) {
+                    whitelistedRecipients[recipient] = true;
+                    _whitelistedIndex[recipient] = _whitelistedList.length;
+                    _whitelistedList.push(recipient);
+                }
+            } else {
+                if (whitelistedRecipients[recipient]) {
+                    whitelistedRecipients[recipient] = false;
+
+                    // Swap with last and pop for O(1) removal.
+                    uint256 idx = _whitelistedIndex[recipient];
+                    uint256 lastIdx = _whitelistedList.length - 1;
+                    if (idx != lastIdx) {
+                        address lastRecipient = _whitelistedList[lastIdx];
+                        _whitelistedList[idx] = lastRecipient;
+                        _whitelistedIndex[lastRecipient] = idx;
+                    }
+
+                    _whitelistedList.pop();
+                    _whitelistedIndex[recipient] = 0;
+                }
             }
         }
         emit PolicyUpdated("whitelist");
@@ -112,9 +146,10 @@ contract AgentWallet {
     function getPolicy() external view returns (
         uint256 _dailyLimit,
         address[] memory _whitelisted,
-        bool _paused
+        bool _paused,
+        bool _whitelistEnabled
     ) {
-        return (dailyLimit, _whitelistedList, paused);
+        return (dailyLimit, _whitelistedList, paused, whitelistEnabled);
     }
 
     function getHistory(uint256 offset, uint256 limit) external view returns (

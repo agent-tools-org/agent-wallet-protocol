@@ -4,7 +4,7 @@ import { defineChain } from 'viem';
 dotenv.config();
 
 export const statusSepolia = defineChain({
-  id: 2020,
+  id: 1660990954,
   name: 'Status Network Sepolia',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: {

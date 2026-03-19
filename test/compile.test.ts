@@ -54,8 +54,9 @@ describe('Compile', () => {
       .map((e: any) => e.name);
     const expectedFunctions = [
       'spend', 'deposit', 'setDailyLimit', 'setRecipientWhitelist',
+      'setWhitelistEnabled',
       'pause', 'unpause', 'getPolicy', 'getSpentToday', 'getHistory',
-      'owner', 'agent', 'dailyLimit', 'paused', 'whitelistedRecipients', 'history',
+      'owner', 'agent', 'dailyLimit', 'paused', 'whitelistEnabled', 'whitelistedRecipients', 'history',
     ];
     for (const fn of expectedFunctions) {
       expect(functionNames).toContain(fn);

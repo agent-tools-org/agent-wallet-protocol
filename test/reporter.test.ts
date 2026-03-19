@@ -10,6 +10,7 @@ const mockPolicy: Policy = {
   dailyLimit: parseEther('1'),
   whitelistedRecipients: [ADDR_A, ADDR_B],
   paused: false,
+  whitelistEnabled: true,
 };
 
 const mockRecords: SpendRecord[] = [

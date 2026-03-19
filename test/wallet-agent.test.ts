@@ -6,20 +6,23 @@ function createMockClients(overrides: {
   policy?: Policy;
   spentToday?: bigint;
   history?: SpendRecord[];
+  balance?: bigint;
 } = {}) {
   const policy: Policy = overrides.policy ?? {
     dailyLimit: parseEther('1'),
     whitelistedRecipients: ['0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`],
     paused: false,
+    whitelistEnabled: true,
   };
 
   const spentToday = overrides.spentToday ?? parseEther('0.3');
   const history = overrides.history ?? [];
+  const balance = overrides.balance ?? parseEther('10');
 
   const readContract = vi.fn().mockImplementation(async (args: { functionName: string }) => {
     switch (args.functionName) {
       case 'getPolicy':
-        return [policy.dailyLimit, policy.whitelistedRecipients, policy.paused];
+        return [policy.dailyLimit, policy.whitelistedRecipients, policy.paused, policy.whitelistEnabled];
       case 'getSpentToday':
         return spentToday;
       case 'getHistory':
@@ -31,7 +34,10 @@ function createMockClients(overrides: {
 
   const writeContract = vi.fn().mockResolvedValue('0xmockhash');
 
-  const publicClient = { readContract } as any;
+  const publicClient = {
+    readContract,
+    getBalance: vi.fn().mockResolvedValue(balance),
+  } as any;
   const walletClient = { writeContract } as any;
 
   return { publicClient, walletClient, readContract, writeContract };
@@ -119,6 +125,7 @@ describe('WalletAgent', () => {
         dailyLimit: parseEther('1'),
         whitelistedRecipients: ['0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`],
         paused: true,
+        whitelistEnabled: true,
       },
     });
     const agent = new WalletAgent(publicClient, walletClient, CONTRACT_ADDR, MOCK_ABI);
@@ -216,6 +223,7 @@ describe('WalletAgent', () => {
         dailyLimit: parseEther('1'),
         whitelistedRecipients: [],
         paused: false,
+        whitelistEnabled: false,
       },
       spentToday: 0n,
     });
@@ -235,6 +243,7 @@ describe('WalletAgent', () => {
         dailyLimit: parseEther('1'),
         whitelistedRecipients: ['0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`],
         paused: true,
+        whitelistEnabled: true,
       },
     });
     const agent = new WalletAgent(publicClient, walletClient, CONTRACT_ADDR, MOCK_ABI);
@@ -246,5 +255,49 @@ describe('WalletAgent', () => {
     );
     expect(result.success).toBe(false);
     expect(result.error).toContain('paused');
+  });
+
+  it('should allow spend to non-whitelisted address when whitelist is disabled', async () => {
+    const { publicClient, walletClient } = createMockClients({
+      policy: {
+        dailyLimit: parseEther('1'),
+        whitelistedRecipients: ['0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`],
+        paused: false,
+        whitelistEnabled: false,
+      },
+      spentToday: 0n,
+    });
+
+    const agent = new WalletAgent(publicClient, walletClient, CONTRACT_ADDR, MOCK_ABI);
+    const result = await agent.validateSpend({
+      to: '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as `0x${string}`,
+      amount: parseEther('0.1'),
+      reason: 'Whitelist disabled',
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it('should reject spend when wallet has insufficient balance', async () => {
+    const { publicClient, walletClient } = createMockClients({
+      policy: {
+        dailyLimit: parseEther('1'),
+        whitelistedRecipients: ['0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`],
+        paused: false,
+        whitelistEnabled: true,
+      },
+      spentToday: 0n,
+      balance: parseEther('0.05'),
+    });
+
+    const agent = new WalletAgent(publicClient, walletClient, CONTRACT_ADDR, MOCK_ABI);
+    const result = await agent.validateSpend({
+      to: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
+      amount: parseEther('0.1'),
+      reason: 'Insufficient ETH',
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('Insufficient balance');
   });
 });

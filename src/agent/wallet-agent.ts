@@ -11,6 +11,7 @@ export interface Policy {
   dailyLimit: bigint;
   whitelistedRecipients: Address[];
   paused: boolean;
+  whitelistEnabled: boolean;
 }
 
 export interface SpendRecord {
@@ -54,12 +55,13 @@ export class WalletAgent {
       address: this.contractAddress,
       abi: this.abi,
       functionName: 'getPolicy',
-    }) as [bigint, Address[], boolean];
+    }) as [bigint, Address[], boolean, boolean];
 
     return {
       dailyLimit: result[0],
       whitelistedRecipients: result[1],
       paused: result[2],
+      whitelistEnabled: result[3],
     };
   }
 
@@ -90,13 +92,17 @@ export class WalletAgent {
       return { valid: false, error: 'Amount must be > 0' };
     }
 
-    if (policy.whitelistedRecipients.length > 0) {
+    if (policy.whitelistEnabled) {
       const isWhitelisted = policy.whitelistedRecipients.some(
         (addr) => addr.toLowerCase() === proposal.to.toLowerCase()
       );
-      if (!isWhitelisted) {
-        return { valid: false, error: 'Recipient not whitelisted' };
-      }
+      if (!isWhitelisted) return { valid: false, error: 'Recipient not whitelisted' };
+    }
+
+    // Avoid attempting an on-chain spend when the wallet has insufficient ETH.
+    const balance = await this.publicClient.getBalance({ address: this.contractAddress });
+    if (balance < proposal.amount) {
+      return { valid: false, error: 'Insufficient balance' };
     }
 
     const spent = await this.getSpentToday();

@@ -4,7 +4,7 @@ import { statusSepolia, baseSepolia, RPC_URL } from '../src/config.js';
 describe('Config', () => {
   it('should export Status Network Sepolia chain config', () => {
     expect(statusSepolia).toBeDefined();
-    expect(statusSepolia.id).toBe(2020);
+    expect(statusSepolia.id).toBe(1660990954);
     expect(statusSepolia.name).toBe('Status Network Sepolia');
     expect(statusSepolia.rpcUrls.default.http[0]).toContain('status.network');
   });
