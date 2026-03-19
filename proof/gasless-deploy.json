@@ -1,14 +1,15 @@
 {
+  "timestamp": "2026-03-19T03:44:05.224Z",
+  "chain": {
+    "id": 1660990954,
+    "name": "Status Network Sepolia"
+  },
   "deployer": "0x3614A5bD7f206d4f9e89c6aEdC4d774e6d534D78",
-  "contractAddress": "0xb3a70a055d13a66793fe302bb6e86527ed15aa1d",
-  "deployTxHash": "0x15f6fb961b45b3c7522b6844782a1ffd9a6b6e50569cd58b55f3127b8a8deae1",
-  "deployBlock": 17994356,
-  "limitTxHash": "0xd33ddc5b9d75ff95522ee5b15a0082768ad4b82ac4106a5f9d330594aae52594",
-  "limitBlock": 17994358,
-  "gasUsed": 5021264,
-  "effectiveGasPrice": 0,
-  "explorerUrl": "https://sepoliascan.status.network/address/0xb3a70a055d13a66793fe302bb6e86527ed15aa1d",
-  "network": "Status Network Sepolia",
-  "chainId": 1660990954,
-  "timestamp": "2026-03-19T02:06:55.579Z"
+  "contract": {
+    "name": "AgentWallet",
+    "address": "0x29336e2570eb4b0de76137b08b5064551c2c1580",
+    "deployTxHash": "0xe516371ab8a5a3d1db36b1c86d04e789b23388797e2587673fd6d2cd3c9f6b3a",
+    "deployBlock": "17997273",
+    "gasPrice": "0"
+  }
 }
